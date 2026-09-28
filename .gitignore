@@ -1,0 +1,6 @@
+# Never commit migration packages or secrets
+*.wpress
+*.sql
+*.sql.gz
+.env
+.env.*

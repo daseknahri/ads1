@@ -1,0 +1,52 @@
+services:
+  wordpress:
+    build:
+      context: .
+    environment:
+      # Coolify auto-generates the domain + Traefik routing for port 80.
+      - SERVICE_FQDN_WORDPRESS_80
+      - WORDPRESS_DB_HOST=mariadb:3306
+      - WORDPRESS_DB_NAME=${MYSQL_DATABASE:-wordpress}
+      - WORDPRESS_DB_USER=${SERVICE_USER_MYSQL}
+      - WORDPRESS_DB_PASSWORD=${SERVICE_PASSWORD_MYSQL}
+      - WORDPRESS_TABLE_PREFIX=${WORDPRESS_TABLE_PREFIX:-wp_}
+      # Trust the Coolify/Traefik proxy so WP builds correct https URLs.
+      - >-
+        WORDPRESS_CONFIG_EXTRA=
+        if (isset($$_SERVER['HTTP_X_FORWARDED_PROTO']) &&
+        $$_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+        $$_SERVER['HTTPS'] = 'on';
+        }
+    volumes:
+      - wp-data:/var/www/html
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:80/wp-login.php", "-o", "/dev/null"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
+  mariadb:
+    image: mariadb:11
+    environment:
+      - MYSQL_ROOT_PASSWORD=${SERVICE_PASSWORD_MYSQLROOT}
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-wordpress}
+      - MYSQL_USER=${SERVICE_USER_MYSQL}
+      - MYSQL_PASSWORD=${SERVICE_PASSWORD_MYSQL}
+    volumes:
+      - db-data:/var/lib/mysql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  wp-data:
+  db-data:
