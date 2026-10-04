@@ -42,7 +42,8 @@ add_action( 'wp_head', function () {
 	if ( ! ge_yt_facade_enabled() ) { return; }
 	echo '<style id="ge-yt-css">'
 		. '.ge-yt{display:block;position:relative;width:100%;aspect-ratio:16/9;background:#000;overflow:hidden;border-radius:var(--radius,12px);text-decoration:none;cursor:pointer}'
-		. '.wp-embed-responsive .wp-has-aspect-ratio .ge-yt{position:absolute;inset:0;height:100%;aspect-ratio:auto}'
+		/* Self-contained 16:9 box: neutralise core's padding-top aspect hack (it assumes an absolutely-positioned iframe). */
+		. '.wp-block-embed__wrapper:has(.ge-yt)::before{content:none!important;display:none!important}'
 		. '.ge-yt img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.92;transition:opacity .2s}'
 		. '.ge-yt__play{position:absolute;left:50%;top:50%;width:68px;height:68px;margin:-34px 0 0 -34px;border-radius:50%;background:rgba(0,0,0,.62);box-shadow:inset 0 0 0 3px rgba(255,255,255,.92);transition:background .2s}'
 		. '.ge-yt__play::after{content:"";position:absolute;left:27px;top:20px;border-style:solid;border-width:14px 0 14px 22px;border-color:transparent transparent transparent #fff}'
@@ -53,5 +54,5 @@ add_action( 'wp_head', function () {
 
 add_action( 'wp_footer', function () {
 	if ( empty( $GLOBALS['ge_yt_facade_used'] ) ) { return; }
-	echo "<script id=\"ge-yt-js\">document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a.ge-yt');if(!a){return;}e.preventDefault();var f=document.createElement('iframe');f.src='https://www.youtube-nocookie.com/embed/'+a.getAttribute('data-id')+'?autoplay=1&rel=0&feature=oembed';f.title=a.getAttribute('data-title')||'YouTube video';f.allow='accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';f.setAttribute('allowfullscreen','');f.referrerPolicy='strict-origin-when-cross-origin';f.style.cssText='width:100%;aspect-ratio:16/9;border:0;display:block';a.replaceWith(f);f.focus();});</script>\n";
+	echo "<script id=\"ge-yt-js\">document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a.ge-yt');if(!a){return;}e.preventDefault();var f=document.createElement('iframe');f.src='https://www.youtube-nocookie.com/embed/'+a.getAttribute('data-id')+'?autoplay=1&rel=0&feature=oembed';f.title=a.getAttribute('data-title')||'YouTube video';f.allow='accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';f.setAttribute('allowfullscreen','');f.referrerPolicy='strict-origin-when-cross-origin';f.style.cssText='position:static;width:100%;height:auto;aspect-ratio:16/9;border:0;display:block';a.replaceWith(f);f.focus();});</script>\n";
 }, 99 );
