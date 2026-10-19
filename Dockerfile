@@ -18,7 +18,7 @@ RUN { \
 
 # Browser caching for static files (fonts a year; images, CSS and JS a month; JS/CSS URLs carry ?ver=).
 COPY docker/site-cache.conf /etc/apache2/conf-available/site-cache.conf
-RUN a2enmod expires headers deflate && a2enconf site-cache
+RUN a2enmod expires headers deflate http2 && a2enconf site-cache
 
 # Site mu-plugins (YouTube click-to-play facade), copied into the wp-content volume on every start.
 COPY mu-plugins/ /opt/site/mu-plugins/
