@@ -1,28 +1,25 @@
-FROM wordpress:php8.3-apache
+# OpenLiteSpeed + lsphp83 (replaces wordpress:php8.3-apache).
+# Why: audit 2026-10-19 (docs/reports/2026-10-19-getemoji-perf-adsense-audit.md) — Apache cannot
+# serve the LiteSpeed Cache plugin's page cache at server level, so every request booted PHP.
+# With a real LiteSpeed server the existing plugin config serves cached pages natively.
+# Rollback: revert to the previous Dockerfile (git history) and Redeploy.
+FROM wordpress:php8.3-apache AS wp
+# Only used as the source of pristine WordPress core for first-run seeding of a fresh volume.
 
-# curl is used by the compose healthcheck and is handy for debugging.
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl \
-    && rm -rf /var/lib/apt/lists/*
+FROM litespeedtech/openlitespeed:1.9.3-lsphp83
 
-# Raise PHP limits so large migration packages (All-in-One WP Migration .wpress)
-# import cleanly. WordPress/Apache here uses mod_php, so this ini is honored.
-RUN { \
-      echo 'upload_max_filesize = 1024M'; \
-      echo 'post_max_size = 1024M'; \
-      echo 'memory_limit = 512M'; \
-      echo 'max_execution_time = 900'; \
-      echo 'max_input_time = 900'; \
-      echo 'max_input_vars = 5000'; \
-    } > /usr/local/etc/php/conf.d/zz-uploads.ini
+# Match the PHP limits the Apache image had (image already sets memory 1024M, upload/post 1024M,
+# max_execution_time 300 — better than the old 900s ceiling, fine for imports via wp-cli).
+RUN PHPINI=$(ls /usr/local/lsws/lsphp83/etc/php/*/litespeed/php.ini) \
+    && sed -i 's/^;\?max_input_vars = .*/max_input_vars = 5000/' "$PHPINI" \
+    && sed -i 's/^;\?max_input_time = .*/max_input_time = 900/' "$PHPINI"
 
-# Browser caching for static files (fonts a year; images, CSS and JS a month; JS/CSS URLs carry ?ver=).
-COPY docker/site-cache.conf /etc/apache2/conf-available/site-cache.conf
-RUN a2enmod expires headers deflate http2 && a2enconf site-cache
+# Pristine WordPress core for seeding an empty wp-data volume (mirrors the official image's flow).
+COPY --from=wp /usr/src/wordpress /usr/src/wordpress
 
-# Site mu-plugins (YouTube click-to-play facade), copied into the wp-content volume on every start.
+# Site mu-plugins (YouTube facade + fixed-size ads), copied into the wp-content volume on every start.
 COPY mu-plugins/ /opt/site/mu-plugins/
 COPY docker/ge-entrypoint.sh /usr/local/bin/ge-entrypoint.sh
 RUN chmod +x /usr/local/bin/ge-entrypoint.sh
+
 ENTRYPOINT ["ge-entrypoint.sh"]
-CMD ["apache2-foreground"]
