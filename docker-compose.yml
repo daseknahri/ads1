@@ -19,6 +19,11 @@ services:
         }
     volumes:
       - wp-data:/var/www/html
+    # The OpenLiteSpeed image EXPOSEs only 7080 (WebAdmin, localhost-bound), so
+    # without an explicit port Coolify/Traefik routes to 7080 -> 503. Pin the
+    # public port to 80 (the OLS HTTP listener) for the SERVICE_FQDN routing.
+    ports:
+      - '80'
     depends_on:
       mariadb:
         condition: service_healthy
