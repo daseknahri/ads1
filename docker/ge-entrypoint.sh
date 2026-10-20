@@ -31,4 +31,17 @@ if [ "$(stat -c %U /var/www/html/wp-content 2>/dev/null || echo unknown)" != "ww
     chown -R www-data:www-data /var/www/html
 fi
 
+# OLS suEXEC (setuidmode 2) scrubs the Docker env before spawning lsphp, so
+# wp-config's getenv_docker('WORDPRESS_DB_*') fallbacks kick in and WordPress
+# dies with "Error establishing a database connection". Pin the DB constants to
+# their real values once (wp-cli escapes correctly; idempotent — the grep guard
+# only matches the getenv_docker form).
+if [ -f /var/www/html/wp-config.php ] && grep -q "getenv_docker('WORDPRESS_DB_HOST'" /var/www/html/wp-config.php; then
+    echo "[ge-entrypoint] pinning DB constants in wp-config.php (OLS suEXEC scrubs env)"
+    wp --allow-root --path=/var/www/html config set DB_HOST "$WORDPRESS_DB_HOST" --quiet || true
+    wp --allow-root --path=/var/www/html config set DB_USER "$WORDPRESS_DB_USER" --quiet || true
+    wp --allow-root --path=/var/www/html config set DB_PASSWORD "$WORDPRESS_DB_PASSWORD" --quiet || true
+    wp --allow-root --path=/var/www/html config set DB_NAME "$WORDPRESS_DB_NAME" --quiet || true
+fi
+
 exec /entrypoint.sh "$@"
